@@ -2,6 +2,7 @@ const {exec} = require("child_process")
 const path = require('path')
 const fs = require("fs")
 const {S3Client, PutObjectCommand} = require("@aws-sdk/client-s3")
+const mime = require('mime-types')
 
 
 const s3Client = new S3Client({
@@ -11,6 +12,8 @@ const s3Client = new S3Client({
         secretAccessKey: ''
     }
 })
+
+const PROJECT_ID = process.env.PROJECT_ID
 
 
 async function init(){
@@ -29,7 +32,7 @@ async function init(){
         
     })
 
-    p.on('close', ()=>{
+    p.on('close', async()=>{
         console.log("Build Completed");
         const distFolderPath = path.join(__dirname, 'output', 'dist')
         const distFolderContents = fs.readdirSync(distFolderPath, {recursive:true})
@@ -40,9 +43,16 @@ async function init(){
 
             const command = new PutObjectCommand({
                 Bucket: '',
-                Key: ''
+                Key: `__outputs/${PROJECT_ID}/${filePath}`,
+                Body: fs.createReadStream(filePath),
+                ContentType: mime.lookup(filePath)
             })
 
+            await s3Client.send(command);
+
         }
+
+        console.log("Done..");
+        
     })
 }
